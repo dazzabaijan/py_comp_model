@@ -1,0 +1,443 @@
+# -*- coding: utf-8 -*-
+"""
+Monte-Carlo Rejection
+"""
+import numpy as np
+import matplotlib.pyplot as plt
+from scipy.optimize import curve_fit
+from mpl_toolkits.mplot3d import Axes3D
+from matplotlib import gridspec
+from mpl_toolkits.axes_grid1.inset_locator import zoomed_inset_axes
+from mpl_toolkits.axes_grid1.inset_locator import mark_inset
+
+
+def sine(x, a):
+    """A scaled sine function for curve fitting.
+
+    Parameters
+    ----------
+    x, a : array-like, dtype=float
+
+    Returns
+    -------
+    dtype=float
+    a*sin(x)
+    """
+    return a * np.sin(x)
+
+
+def exponential(x, a, b):
+    """A scaled exponential function for curve fitting.
+
+    Parameters
+    ----------
+    x, a, b : array-like, dtype=float
+
+    Returns
+    -------
+    dtype=float
+    a*e^(-x/b)
+    """
+    return a * np.exp(-x / b)
+
+
+def histogram_curvefit(x_axis, bin_numb, gap, label_1, label_2, func=None,
+                       *guess_parameters):
+    """This plots a histogram. Allows for fitting of a curve. Takes in the
+    relevant x and y values for data. And other plotting string.
+
+    """
+    hist, bins = np.histogram(x_axis, bins=bin_numb)
+    width = gap * (bins[1] - bins[0])
+    center = (bins[:-1] + bins[1:]) / 2
+    plt.bar(center, hist, align='center', width=width, label=label_1)
+    if func is not None:
+        popt, pcov = curve_fit(func, center, hist,
+                               bounds=(0.0001, [*guess_parameters]))
+        plt.plot(center, func(center, *popt), 'r--', label=label_2)
+    plt.legend(loc='best')
+    plt.savefig("SBEVE.png", format="png", dpi=2000)
+    plt.show()
+
+
+def analytical_sine(max_iter, algorithm=None):
+    """
+    Does the analytical method of random angle sampling. With vectorisation
+    implemented
+    """
+    if algorithm is None:
+        analytical_hist = []
+        for i in range(max_iter):
+            uni_dist = np.random.uniform(0, 1)
+            arccos = np.arccos(1 - 2 * uni_dist)
+            analytical_hist.append(arccos)
+    elif algorithm == "vectorise":
+        analytical_hist = np.arccos(1 - 2 * np.random.uniform(0, 1, max_iter))
+
+    return analytical_hist
+
+
+def acc_rej_sine(max_iter, algorithm=None):
+    """
+    Does the accept reject method of random angle sampling. With vectorisation
+    implemented.
+    """
+    x = np.random.uniform(0, np.pi, max_iter)
+    y = np.random.rand(max_iter)
+    if algorithm is None:
+        accepted_x, j = [], 0
+        for i in range(max_iter):
+            if y[i] <= np.sin(x[i]):
+                accepted_x.append(x[i])
+                j += 1
+    elif algorithm == "vectorise":
+        accepted_x = np.extract((y <= np.sin(x)), x)
+
+    return accepted_x
+
+
+def get_angles(nuclei):
+    """
+    Get a set of phi(s) and theta(s) depends the size of the number of nuclei
+    Return arrays.
+    """
+    phi = np.random.uniform(0, 2 * np.pi, nuclei)
+    cos_theta = np.random.uniform(-1, 1, nuclei)
+
+    return phi, cos_theta
+
+
+def generate_data(rate, nuclei, velocity, fixed_distance=None):
+    """Generate data for plotting"""
+    decay_time = np.random.exponential(rate, size=nuclei)
+    if fixed_distance is None:
+        decay_positions = velocity * decay_time
+        decay_positions = np.extract(decay_positions <= 2, decay_positions)
+    elif fixed_distance is not None:
+        decay_positions = np.ones(nuclei) * fixed_distance
+
+    phi, cos_theta = get_angles(len(decay_positions))
+    detector_x, detector_y, smeared_x, smeared_y = \
+        detection(decay_positions, cos_theta, phi)
+
+    return (detector_x, detector_y, smeared_x, smeared_y, decay_positions,
+            decay_time, cos_theta, phi)
+
+
+def kl_div(p, q):
+    """Computes the Kullback-Leibler divergence D(P || Q) for discrete
+       probability distributions P and Q.
+
+    Parameters
+    ----------
+    p, q : array-like, dtype=float, shape=n
+        Discrete probability distributions.
+
+    Returns
+    -------
+    dtype=float
+    K-L divergence
+    """
+    p = np.asarray(p, dtype=np.float)
+    q = np.asarray(q, dtype=np.float)
+
+    return np.sum(np.where(p != 0, p * np.log(p / q), 0))
+
+
+def gen_random_points(npoints, method=None, clump=None):
+    """
+    if method = arccos,
+    (-np.pi, np.pi) clumped
+    (-np.pi, np.pi) = whole sphere, clumped
+    (-np.pi/2, np.pi/2) = half sphere, clumped
+
+    if method = uniform
+    (0, 1) = half sphere
+    (-1, 1) = whole sphere
+    """
+    phi = 2 * np.pi * np.random.rand(npoints)
+
+    if method == "arccos":
+        if clump is None:
+            theta = np.random.uniform(0, np.pi, npoints)  # clump
+        elif clump is not None:
+            theta = np.arccos(2 * np.random.rand(npoints) - 1)  # not clump
+        x = np.sin(theta) * np.cos(phi)
+        y = np.sin(theta) * np.sin(phi)
+        z = np.cos(theta)
+    if method == "uniform":
+        cos_theta = np.random.uniform(-1, 1, npoints)  # not clump
+        x = np.sqrt(1 - cos_theta ** 2) * np.cos(phi)
+        y = np.sqrt(1 - cos_theta ** 2) * np.sin(phi)
+        z = cos_theta
+
+    return x, y, z
+
+
+def subplots_2d_hist(x_data, y_data, x_labels, y_labels, titles):
+    nrows, ncols, mappables = 2, 2, []
+    fig, axes = plt.subplots(nrows, ncols, sharex=True, sharey=True)
+
+    for (i, j), ax in np.ndenumerate(axes):
+        H, xedges, yedges = np.histogram2d(x_data[i][j], y_data[i][j], bins=50,
+                                           range=[[-2, 2], [-2, 2]])
+        ax.set_title(titles[i][j], fontsize=12)
+        ax.set_xlabel(x_labels[i][j], fontsize=15)
+        ax.set_ylabel(y_labels[i][j], fontsize=15)
+        ax.set_aspect("equal")
+        mappables.append(H)
+
+    vmin = np.min(mappables)
+    vmax = np.max(mappables)
+
+    for ax, H in zip(axes.ravel(), mappables):
+        im = ax.imshow(H, vmin=vmin, vmax=vmax, extent=[-2, 2, -2, 2], cmap='seismic')
+
+    fig.colorbar(im, ax=axes.ravel(), label="Frequency")
+    plt.subplots_adjust(left=0.10, right=0.7, hspace=0.4, wspace=0.3)
+    plt.show()
+
+
+def overlay_1d_pmf(x_data, y_data, label):
+    """Overlays the 1d pmf on top of each other"""
+    x_label = ["Probability", ""]
+    fig, axes = plt.subplots(nrows=1, ncols=2, sharey=True)
+    for i, ax in enumerate(axes):
+        data, bins, patches = ax.hist([x_data[i], y_data[i]],
+                                      bins=(np.arange(-2.05, 2.05, 0.05).tolist()),
+                                      histtype='step', color=['navy', 'red'],
+                                      label=["along x", "along y"], density=True)
+        ax.set_title(label[i] + " K-L divergence = " + str(round(kl_div(data[0], data[1]), 4)))
+        ax.set_xlabel("Detector positions (m)", fontsize=15)
+        ax.set_ylabel(x_label[i], fontsize=15)
+        ax.set_xlim((-2, 2))
+        ax.legend()
+    plt.tight_layout()
+    plt.show()
+
+
+def hist_2d(x_axis, y_axis, bins, x_lim, y_lim, x_label, y_label, title, aspect=None):
+    plt.hist2d(x_axis, y_axis, bins, range=[x_lim, y_lim], cmap='jet')
+    plt.colorbar(label='Frequency')
+    plt.xlabel(x_label, fontsize=15)
+    plt.ylabel(y_label, fontsize=15)
+    plt.title(title, fontsize=15)
+    if aspect is not None:
+        plt.axes().set_aspect(aspect)
+    plt.show()
+
+
+def subplots_surface_points(nuclei, ax_lim, elev, azim, titles, method):
+    """Plot a 3D sphere with random points on it into subplots"""
+    x, y, z = gen_random_points(nuclei, method)
+    x1, y1, z1 = 0, 0, np.linspace(-1, 0, 1000)
+    points = np.linspace(-1, 1, 20)
+    (xx, yy), zz = np.meshgrid(points, points), np.ones([20, 20])
+
+    fig = plt.figure(figsize=(15, 10))
+    gs = gridspec.GridSpec(2, 2, width_ratios=[2, 2])
+    for i, elem in enumerate(gs):
+        ax = fig.add_subplot(gs[i], projection='3d')
+        ax.scatter(x, y, z, s=3, color="blue")
+        ax.scatter(x1, y1, z1, s=3, color="red", lw=4)
+        ax.plot_wireframe(xx, yy, zz, color="seagreen", rstride=5, cstride=5)
+        ax.set_aspect('equal')
+        ax.set_zlim(-ax_lim, ax_lim)
+        ax.set_xlim(-ax_lim, ax_lim)
+        ax.set_ylim(-ax_lim, ax_lim)
+        ax.set_zlabel('x (m)')
+        ax.set_ylabel('y (m)')
+        ax.set_xlabel('z (m)')
+        ax.set_title(titles[i], loc='left')
+        ax.view_init(elev[i], azim[i])
+    plt.subplots_adjust(hspace=0.25, wspace=-0.5)
+    plt.show()
+
+
+def plot_surface_points(nuclei, ax_lim, elev, azim, title, method):
+    """Plot a 3D sphere with random points on it"""
+    x, y, z = gen_random_points(nuclei, method, "ON")
+    x1, y1, z1 = 0, 0, np.linspace(-1, 0, 1000)
+    points = np.linspace(-1, 1, 20)
+    (xx, yy), zz = np.meshgrid(points, points), np.ones([20, 20])
+    fig = plt.figure(figsize=(7, 7))
+
+    ax = fig.add_subplot(111, projection='3d')
+    ax.scatter(x, y, z, s=1, color="blue")
+    ax.scatter(x1, y1, z1, s=3, color="red", lw=4)
+    ax.plot_wireframe(xx, yy, zz, color="seagreen", rstride=5, cstride=5)
+    ax.set_aspect('equal')
+    ax.set_zlim(-ax_lim, ax_lim)
+    ax.set_xlim(-ax_lim, ax_lim)
+    ax.set_ylim(-ax_lim, ax_lim)
+    ax.set_zlabel('z (m)', fontsize=15)
+    ax.set_ylabel('y (m)', fontsize=15)
+    ax.set_xlabel('x (m)', fontsize=15)
+    ax.invert_xaxis()
+    ax.set_title(title, x=0.74, y=1.06, fontsize=12)
+    ax.view_init(elev, azim)
+
+    #    plt.savefig("wrong_point_dist.png", format="png", dpi=2000)
+    plt.show()
+
+
+def hypothesis(pseudo_exp, sigma_points, luminosity, efficiency, branching_r, lum_error=None):
+    """Main code for part(c), whole thing implemented by vectorisation"""
+    cross_section = np.ones((pseudo_exp, sigma_points)) * np.linspace(0.0001, 1, sigma_points)
+    background = np.random.normal(5.7, 0.4, cross_section.shape)
+    if lum_error is not None:
+        luminosity = np.random.normal(luminosity, lum_error, cross_section.shape)
+    event = np.random.poisson(luminosity * cross_section * efficiency * branching_r + background)
+    conf_level = np.sum((event > 5) / pseudo_exp, axis=0) * 100
+    first_conf_level = np.extract((conf_level > 95), conf_level)[0]
+    valid_cols = np.where(conf_level > 95)[0][0]
+    sigma = cross_section[0, valid_cols]
+    print("Cross section limit for 95% confidence level = {} nb".format(sigma))
+    first_conf_level = np.full(sigma_points, first_conf_level)
+    return conf_level, cross_section[0][:], first_conf_level, sigma
+
+
+def detection(dist_from_injection, cos_theta, phi):
+    """
+    Returns the detected positions on the screen for smeared and non-smeared
+    points
+    """
+    z = 2 - np.array(dist_from_injection)
+    detector_x = (z / cos_theta) * np.sqrt(1 - cos_theta ** 2) * np.cos(phi)
+    detector_y = (z / cos_theta) * np.sqrt(1 - cos_theta ** 2) * np.sin(phi)
+    smeared_x = np.random.normal(detector_x, 0.1)
+    smeared_y = np.random.normal(detector_y, 0.3)
+    return detector_x, detector_y, smeared_x, smeared_y
+
+
+def multiline(x_data, y_data, x_label, y_label, legend):
+    """Plot multilines onto a graph"""
+    fig, ax = plt.subplots()
+    axins = zoomed_inset_axes(ax, 5, loc=2)
+    axins.set_xlim(0.4, 0.45)
+    axins.set_ylim(93, 97)
+    for i, value in enumerate(y_data):
+        ax.plot(x_data, y_data[i], label=legend[i])
+        axins.plot(x_data, y_data[i])
+        ax.set_title("pseudoexperiments = 10000, $\sigma$ increment = 0.001 ")
+        ax.legend()
+
+    ax.set_xlabel(x_label, fontsize=15)
+    ax.set_ylabel(y_label, fontsize=15)
+    mark_inset(ax, axins, loc1=1, loc2=4, facecolor="blue", ec="0.1")
+    plt.savefig("SBEVE.png", format="png", dpi=2000)
+    plt.show()
+
+
+def choice_a(max_iter):
+    analytical_hist = analytical_sine(max_iter)
+    histogram_curvefit(analytical_hist, 50, 0.8, "Analytical", "Sine fit", sine, 40000)
+
+    analytical_hist = analytical_sine(max_iter, "vectorise")
+    histogram_curvefit(analytical_hist, 50, 0.8, "Analytical(Vectorised)", "Sine fit", sine, 40000)
+
+    accepted_x = acc_rej_sine(max_iter)
+    histogram_curvefit(accepted_x, 50, 0.8, "Accept Reject", "Sine fit", sine, 40000)
+
+    accepted_x = acc_rej_sine(max_iter, "vectorise")
+    histogram_curvefit(accepted_x, 50, 0.8, "Accept Reject(Vectorised)", "Sine fit", sine, 40000)
+
+
+def choice_b(velocity):
+    plot_surface_points(int(5e3), 1, -50, 90, r"Nuclei number = 500", "arccos")
+    plot_surface_points(int(5e3), 1, -50, 90, r"Nuclei number = 500", "uniform")
+    elev = [-30, -135, 90, 0]
+    azim = [135, 135, 50, 90]
+    titles = ['(a)', '(b)', '(c)', '(d)']
+    subplots_surface_points(int(8e2), 1, elev, azim, titles, "arccos")
+
+    # 5e6 is original value # 1e5 good for showing hits on screen
+
+    data = generate_data(MEAN_LIFE, int(5e6), 2000)
+
+    histogram_curvefit(data[5][:], 50, 0.8, "Random sampling", "Exponential fit", exponential, 3000000, 0.002)
+
+    overlay_1d_pmf([data[0][:], data[2][:]], [data[1][:], data[3][:]], ["(a)", "(b)"])
+
+    hist_2d(data[0][:], data[1][:], 50, [-1, 1], [-1, 1],
+            "x positions(m)", "y positions(m)", "(a) Unsmeared", "equal")
+    hist_2d(data[2][:], data[3][:], 50, [-1, 1], [-1, 1], "x positions(m)",
+            "y positions(m)", "(b) Smeared", "equal")
+
+    fixed_dist1 = generate_data(MEAN_LIFE, int(5e6), 2000, 1.5)
+    fixed_dist2 = generate_data(MEAN_LIFE, int(5e6), 2000, 1.4)
+    fixed_dist3 = generate_data(MEAN_LIFE, int(5e6), 2000, 1.3)
+    fixed_dist4 = generate_data(MEAN_LIFE, int(5e6), 2000, 1.2)
+    data_x = [[fixed_dist1[0][:], fixed_dist2[0][:]],
+              [fixed_dist3[0][:], fixed_dist4[0][:]]]
+    data_y = [[fixed_dist1[1][:], fixed_dist2[1][:]],
+              [fixed_dist3[1][:], fixed_dist4[1][:]]]
+    smeared_x = [[fixed_dist1[2][:], fixed_dist2[2][:]],
+                 [fixed_dist3[2][:], fixed_dist4[2][:]]]
+    smeared_y = [[fixed_dist1[3][:], fixed_dist2[3][:]],
+                 [fixed_dist3[3][:], fixed_dist4[3][:]]]
+    x_labels = [["", ""], ["x positions(m)", "x positions(m)"]]
+    y_labels = [["y positions(m)", ""], ["y positions(m)", ""]]
+    titles = [["0.5m from detector", "0.6m from detector"],
+              ["0.7m from detector", "0.8m from detector"]]
+    subplots_2d_hist(data_x, data_y, x_labels, y_labels, titles)
+    subplots_2d_hist(smeared_y, smeared_x, x_labels, y_labels, titles)
+
+    fixed_life1 = generate_data(550E-6, int(5e6), velocity)
+    fixed_life2 = generate_data(100E-5, int(5e6), velocity)
+    fixed_life3 = generate_data(300E-5, int(5e6), velocity)
+    fixed_life4 = generate_data(500E-5, int(5e6), velocity)
+    data_x = [[fixed_life1[0][:], fixed_life2[0][:]],
+              [fixed_life3[0][:], fixed_life4[0][:]]]
+    data_y = [[fixed_life1[1][:], fixed_life2[1][:]],
+              [fixed_life3[1][:], fixed_life4[1][:]]]
+    smeared_x = [[fixed_life1[2][:], fixed_life2[2][:]],
+                 [fixed_life3[2][:], fixed_life4[2][:]]]
+    smeared_y = [[fixed_life1[3][:], fixed_life2[3][:]],
+                 [fixed_life3[3][:], fixed_life4[3][:]]]
+    x_labels = [["", ""], ["x positions(m)", "x positions(m)"]]
+    y_labels = [["y positions(m)", ""], ["y positions(m)", ""]]
+    titles = [[r"meanlife = $550 \mu s$", "meanlife = 1ms"],
+              ["meanlife = 3ms", "meanlife = 5ms"]]
+
+    subplots_2d_hist(data_x, data_y, x_labels, y_labels, titles)
+    subplots_2d_hist(smeared_y, smeared_x, x_labels, y_labels, titles)
+
+
+def choice_c(pseudo_exp, sigma_points):
+    data1 = hypothesis(pseudo_exp, sigma_points, 12, 1, 1)
+    data2 = hypothesis(pseudo_exp, sigma_points, 12, 1, 1, 2)
+    data3 = hypothesis(pseudo_exp, sigma_points, 12, 0.85, 1, 2)
+    y_data = [data1[0], data1[2], data2[0], data2[2], data3[0], data3[2]]
+    legend = [r"$L_1$ = {}/nb".format(12),
+              "$\sigma_1$, CLs, $\epsilon$ = {}nb, {}%, {}".format(round(data1[3], 3), round(data1[2][0], 2), 1),
+              "$L_2$ = {}$\pm${}/nb".format(12, 2),
+              "$\sigma_2$, CLs, $\epsilon$ = {}nb, {}%, {}".format(round(data2[3], 3), round(data2[2][0], 2), 1),
+              "$L_3$ = {}$\pm${}/nb".format(12, 2),
+              "$\sigma_3$, CLs, $\epsilon$ = {}nb, {}%, {}".format(round(data3[3], 3), round(data3[2][0], 2), 0.85)]
+    multiline(data1[1], y_data, r"$\sigma$ (nb)", "Confidence level %", legend)
+
+
+VELOCITY = 2000
+MEAN_LIFE = 550E-6
+MAX_ITER = int(1E6)
+
+
+def main_menu():
+    choice = '0'
+    while choice != 'q':
+        print("Part(a): Random angle generation")
+        print("Part(b): Gamma ray detection")
+        print("Part(c): Statistical Methods")
+        choice = (input("Please enter your choice [a-q] : ").lower())
+        if choice == 'a':
+            choice_a(MAX_ITER)
+        elif choice == 'b':
+            choice_b(VELOCITY)
+        elif choice == 'c':
+            choice_c(10000, 1000)
+        elif choice != 'q':
+            print("Invalid choice. Please try again.")
+
+
+main_menu()
