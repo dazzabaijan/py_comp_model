@@ -26,7 +26,7 @@ This repo contains all the Python computational modelling project that I have do
   Library stack: numpy, matplotlib, scipy
   
 - Random Numbers and Monte-Carlo Methods: [[Code]](https://github.com/dazzabaijan/py_comp_model/blob/master/3rd_year/ex_3/dn16018_ex3_code.txt) | [[Report]](https://github.com/dazzabaijan/py_comp_model/blob/master/3rd_year/ex_3/dn16018_ex4_report.pdf)\
-  Library stack: numpy, matplotlib, scipy
+  Library stack: numpy, matplotlib, scipy\
   This project has three parts:
   - Random Angles Generation\
     Investigation random angles(number) generation using both the inverse transform sampling and acceptance-rejection methods.
