@@ -26,20 +26,21 @@ This repo contains all the Python computational modelling project that I have do
   Library stack: numpy, matplotlib, scipy
   
 - Random Numbers and Monte-Carlo Methods: [[Code]](https://github.com/dazzabaijan/py_comp_model/blob/master/3rd_year/ex_3/dn16018_ex3_code.txt) | [[Report]](https://github.com/dazzabaijan/py_comp_model/blob/master/3rd_year/ex_3/dn16018_ex4_report.pdf)\
-  Library stack: numpy, matplotlib, scipy\
   This project has three parts:
   - Random Angles Generation\
     Investigation random angles(number) generation using both the inverse transform sampling and acceptance-rejection methods.
   - Nuclei Decay and Gamma Ray Detection\
     A Monte-Carlo based simulation of gamma ray detection and trajectories due particle injections from the decay of a distant nuclei.
   - Statistical Methods and Hypothesis Testing\
-    Pseudo-experiments(Toy Monte-Carlo) are generated with random variables to model the Gaussian uncertainty on the background prediction and the Poisson variation in the background and signal production of a collider experiment.
+    Pseudo-experiments(Toy Monte-Carlo) are generated with random variables to model the Gaussian uncertainty on the background prediction and the Poisson variation in the background and signal production of a collider experiment.\
+    Library stack: numpy, matplotlib, scipy
     
 ### Final year: Advanced Computational Physics
 
 - Computational Time Optimisation of the Ising Model: [[Code]](https://github.com/dazzabaijan/py_comp_model/blob/master/final_year/ising_mpi_method1.py) | [[Report]](https://github.com/dazzabaijan/py_comp_model/blob/master/final_year/ACP_report.pdf)
 
-  Simulated the 2D Ferromagnetic Ising Model using the Markov Chain Monte-Carlo(MCMC) Metropolis-Hastings algorithm. At the heart of the algorithm it uses the Importance Sampling  method to sample the "important" states from the states of a system according to the equilibrated Boltzmann probability distribution rather than sample them with equal probability. The observables of the simulation - energy, magnetisation, specific heat and susceptibility per spin - have been presented as a function of temperatures. The discussion on ensuring conditions such as detailed balance and ergodicity of the simulation is presented. The Numba Python library is used to optimise and accelerate the simulation. Moreover, two similar methods of domain decomposition are presented and performed using the mpi4py Python library. Finally, the computational speedup of these methods with respect to different parameters e.g. lattice dimension is presented and discuessed.
+  Simulated the 2D Ferromagnetic Ising Model using the Markov Chain Monte-Carlo(MCMC) Metropolis-Hastings algorithm. At the heart of the algorithm it uses the Importance Sampling  method to sample the "important" states from the states of a system according to the equilibrated Boltzmann probability distribution rather than sample them with equal probability. The observables of the simulation - energy, magnetisation, specific heat and susceptibility per spin - have been presented as a function of temperatures. The discussion on ensuring conditions such as detailed balance and ergodicity of the simulation is presented. The Numba Python library is used to optimise and accelerate the simulation. Moreover, two similar methods of domain decomposition are presented and performed using the mpi4py Python library. Finally, the computational speedup of these methods with respect to different parameters e.g. lattice dimension is presented and discuessed.\
+  Library stack: numpy, numba, matplotlib, pandas, mpi4py \(E = mc^2\)
 
 
     
