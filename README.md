@@ -1,5 +1,5 @@
 # Python Computational Modelling
-This repo contains all the computational modelling project that I have done for my master's degree in Theoretical Physics.
+This repo contains all the Python computational modelling project that I have done for my master's degree in Theoretical Physics.
 
 ### Second year: Computational Physics 201
 
@@ -36,6 +36,10 @@ This repo contains all the computational modelling project that I have done for 
     Pseudo-experiments(Toy Monte-Carlo) are generated with random variables to model the Gaussian uncertainty on the background prediction and the Poisson variation in the background and signal production of a collider experiment.
     
 ### Final year: Advanced Computational Physics
+
+- Computational Time Optimisation of the Ising Model: [[Code]](https://github.com/dazzabaijan/py_comp_model/blob/master/final_year/ising_mpi_method1.py) | [[Report]](https://github.com/dazzabaijan/py_comp_model/blob/master/final_year/ACP_report.pdf)
+
+  Simulated the 2D Ferromagnetic Ising Model using the Markov Chain Monte-Carlo(MCMC) Metropolis-Hastings algorithm. At the heart of the algorithm it uses the Importance Sampling  method to sample the "important" states from the states of a system according to the equilibrated Boltzmann probability distribution rather than sample them with equal probability. The observables of the simulation - energy, magnetisation, specific heat and susceptibility per spin - have been presented as a function of temperatures. The discussion on ensuring conditions such as detailed balance and ergodicity of the simulation is presented. The Numba Python library is used to optimise and accelerate the simulation. Moreover, two similar methods of domain decomposition are presented and performed using the mpi4py Python library. Finally, the computational speedup of these methods with respect to different parameters e.g. lattice dimension is presented and discuessed.
 
 
     
