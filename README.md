@@ -33,7 +33,7 @@ This repo contains all the Python computational modelling project that I have do
     A Monte-Carlo based simulation of gamma ray detection and trajectories due particle injections from the decay of a distant nuclei.
   - Statistical Methods and Hypothesis Testing\
     Pseudo-experiments(Toy Monte-Carlo) are generated with random variables to model the Gaussian uncertainty on the background prediction and the Poisson variation in the background and signal production of a collider experiment.\
-    Library stack: numpy, matplotlib, scipy
+  Library stack: numpy, matplotlib, scipy
     
 ### Final year: Advanced Computational Physics
 
