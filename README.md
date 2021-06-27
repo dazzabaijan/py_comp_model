@@ -1,5 +1,5 @@
 # Python Computational Modelling
-This repo contains all the Python computational modelling project that I have done for my master's degree in Theoretical Physics.
+This repo contains all the Python computational modelling project that I have done for my master's degree in Theoretical Physics. I have achieved First Class Honours for all years, with one of the highest marks in final year.
 
 ### Second year: Computational Physics 201
 
